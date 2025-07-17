@@ -1,0 +1,6 @@
+[submodule "utils1"]
+	path = utils1
+	url = https://github.com/twizzler-ci-test/utils1.git
+[submodule "utils2"]
+	path = utils2
+	url = https://github.com/twizzler-ci-test/utils2.git
