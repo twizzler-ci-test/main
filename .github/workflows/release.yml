@@ -1,0 +1,57 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  Release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Generate tag from submod sha
+        id: tag
+        run: |
+          hash1=$(git rev-parse HEAD:utils1 | cut -c1-7)
+          hash2=$(git rev-parse HEAD:utils2 | cut -c1-7)
+          tag="utils-${hash1}-${hash2}"
+          echo "tag=$tag" >> $GITHUB_OUTPUT
+
+      - name: Check if tag exists
+        id: tag_check
+        run: |
+          if git ls-remote --tags origin "refs/tags/${{ steps.tag.outputs.tag }}" | grep -q .; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Build and run binary
+        if: steps.tag_check.outputs.exists == 'false'
+        run: |
+          cargo build --release
+          ./target/release/main > output.txt
+
+      - name: Create release and upload
+        if: steps.tag_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.tag.outputs.tag }}
+          name: Release for ${{ steps.tag.outputs.tag }}
+          files: output.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip message
+        if: steps.tag_check.outputs.exists == 'true'
+        run: echo "Tag ${{ steps.tag.outputs.tag }} already exists. skipping release"
